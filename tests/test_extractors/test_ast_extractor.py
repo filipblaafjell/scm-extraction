@@ -65,8 +65,8 @@ self.result = input_a + input_b
         assert "result" in deps
         assert set(deps["result"]) == {"input_a", "input_b"}
 
-    def test_no_self_reference(self):
-        """Test that self-references are excluded."""
+    def test_self_loops_included_by_default(self):
+        """Test that self-loops are included by default."""
         code = """
 x = x + 1
 """
@@ -74,7 +74,20 @@ x = x + 1
         graph = extractor.extract_from_string(code, variables={"x"})
         deps = graph.to_dependencies()
 
-        # x = x + 1 should not create x -> x edge
+        # x = x + 1 should create x -> x edge
+        assert "x" in deps
+        assert "x" in deps["x"]
+
+    def test_self_loops_can_be_excluded(self):
+        """Test that self-loops can be excluded."""
+        code = """
+x = x + 1
+"""
+        extractor = ASTExtractor(include_self_loops=False)
+        graph = extractor.extract_from_string(code, variables={"x"})
+        deps = graph.to_dependencies()
+
+        # x = x + 1 should not create x -> x edge when disabled
         assert "x" not in deps or "x" not in deps.get("x", [])
 
     def test_extract_from_sir_simulator(self):
