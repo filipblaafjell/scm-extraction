@@ -1,0 +1,16 @@
+# SIR Model - Basic AST Extraction Experiment
+
+name: sir_basic
+simulator: sir
+extractor: ast
+output_dir: results
+
+variables:
+  - Susceptible
+  - Infected
+  - Resistant
+  - S_to_I
+  - I_to_R
+  - rateSI
+  - rateIR
+  - numIndividuals

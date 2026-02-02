@@ -1,0 +1,15 @@
+# Default configuration for SCM extraction experiments
+
+name: default
+simulator: sir
+extractor: ast
+output_dir: results
+
+# Optional: specify variables (if omitted, uses simulator defaults)
+# variables:
+#   - Susceptible
+#   - Infected
+#   - Resistant
+
+# Optional: method-specific options
+options: {}
