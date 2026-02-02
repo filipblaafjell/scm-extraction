@@ -12,9 +12,10 @@ from scmextract.extractors.registry import ExtractorRegistry
 class CausalASTVisitor(ast.NodeVisitor):
     """AST visitor that extracts causal dependencies between variables."""
 
-    def __init__(self, variables_of_interest: Optional[Set[str]] = None):
+    def __init__(self, variables_of_interest: Optional[Set[str]] = None, include_self_loops: bool = True):
         self.dependencies: Dict[str, List[str]] = {}
         self.variables_of_interest = variables_of_interest
+        self.include_self_loops = include_self_loops
 
     def _get_referenced_names(self, node: ast.AST) -> List[str]:
         """Extract all variable names referenced in an expression."""
@@ -31,7 +32,8 @@ class CausalASTVisitor(ast.NodeVisitor):
 
     def _add_dependency(self, target: str, deps: List[str]) -> None:
         """Add dependencies for a target variable."""
-        deps = [d for d in deps if d != target]  # Remove self-reference
+        if not self.include_self_loops:
+            deps = [d for d in deps if d != target]
         if not deps:
             return
         if target in self.dependencies:
@@ -77,6 +79,9 @@ class ASTExtractor(BaseExtractor):
     relationships by tracking variable assignments and mutations.
     """
 
+    def __init__(self, include_self_loops: bool = True):
+        self.include_self_loops = include_self_loops
+
     def extract(self, source_path: Path, variables: Optional[Set[str]] = None) -> CausalGraph:
         """Extract causal graph from a Python source file.
 
@@ -104,7 +109,7 @@ class ASTExtractor(BaseExtractor):
             CausalGraph with extracted dependencies.
         """
         tree = ast.parse(source_code)
-        visitor = CausalASTVisitor(variables_of_interest=variables)
+        visitor = CausalASTVisitor(variables_of_interest=variables, include_self_loops=self.include_self_loops)
         visitor.visit(tree)
 
         var_list = sorted(variables) if variables else None
