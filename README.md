@@ -11,7 +11,12 @@ A research toolkit for automatically extracting causal graphs from Python simula
 git clone https://github.com/filipblaafjell/scm-extraction.git
 cd scm-extraction
 
-# Install in development mode
+# Install with uv (recommended)
+uv venv
+uv pip install -e ".[dev]"
+source .venv/bin/activate
+
+# Or with pip
 pip install -e ".[dev]"
 ```
 
@@ -126,8 +131,10 @@ class MySimulator(BaseSimulator):
 ## Development
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
+# Setup with uv
+uv venv
+uv pip install -e ".[dev]"
+source .venv/bin/activate
 
 # Run tests
 pytest tests/ -v
