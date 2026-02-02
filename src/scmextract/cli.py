@@ -150,5 +150,95 @@ def list_extractors():
         click.echo(f"  {name}: {doc}")
 
 
+@cli.command()
+@click.option("--methods", "-m", multiple=True, help="Extraction methods to benchmark (default: all)")
+@click.option("--simulators", "-s", multiple=True, help="Simulators to benchmark (default: all)")
+@click.option("--output", "-o", default="results/benchmark", help="Output directory")
+def benchmark(methods: tuple, simulators: tuple, output: str):
+    """Run benchmark across simulators and extraction methods.
+
+    Example:
+        scmextract benchmark --methods ast --output results/benchmark
+    """
+    import csv
+    from datetime import datetime
+
+    # Get all extractors and simulators if not specified
+    extractor_names = list(methods) if methods else list(ExtractorRegistry.list_extractors().keys())
+    simulator_names = list(simulators) if simulators else list(SimulatorRegistry.list_simulators().keys())
+
+    if not extractor_names:
+        click.echo("No extractors available.")
+        return
+
+    if not simulator_names:
+        click.echo("No simulators available.")
+        return
+
+    click.echo(f"Benchmarking {len(extractor_names)} extractor(s) on {len(simulator_names)} simulator(s)")
+    click.echo(f"  Extractors: {', '.join(extractor_names)}")
+    click.echo(f"  Simulators: {', '.join(simulator_names)}")
+    click.echo()
+
+    # Prepare output directory
+    output_path = Path(output)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    # Collect results
+    results = []
+
+    for sim_name in simulator_names:
+        simulator = get_simulator(sim_name)
+        ground_truth = simulator.get_ground_truth_graph()
+        variables = set(simulator.get_all_variables())
+        source_path = simulator.get_source_path()
+
+        for ext_name in extractor_names:
+            click.echo(f"  {sim_name} + {ext_name}...", nl=False)
+
+            extractor = get_extractor(ext_name)
+            predicted = extractor.extract(source_path, variables=variables)
+            metrics = evaluate_graph(predicted, ground_truth)
+
+            results.append({
+                "simulator": sim_name,
+                "extractor": ext_name,
+                "precision": metrics["precision"],
+                "recall": metrics["recall"],
+                "f1": metrics["f1"],
+                "shd": metrics["shd"],
+                "num_predicted_edges": predicted.num_edges(),
+                "num_true_edges": ground_truth.num_edges(),
+            })
+
+            click.echo(f" F1={metrics['f1']:.3f}, SHD={metrics['shd']}")
+
+            # Save individual results
+            result_dir = output_path / sim_name / ext_name
+            result_dir.mkdir(parents=True, exist_ok=True)
+            save_graph(predicted, result_dir / "predicted.json", format="json")
+            visualize_graph(predicted, output_path=str(result_dir / "predicted.png"),
+                          title=f"{sim_name} - {ext_name}")
+
+    # Save summary CSV
+    csv_path = output_path / "summary.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=results[0].keys())
+        writer.writeheader()
+        writer.writerows(results)
+
+    # Save summary JSON
+    summary = {
+        "timestamp": datetime.now().isoformat(),
+        "extractors": extractor_names,
+        "simulators": simulator_names,
+        "results": results,
+    }
+    with open(output_path / "summary.json", "w") as f:
+        json.dump(summary, f, indent=2)
+
+    click.echo(f"\nBenchmark complete. Results saved to: {output_path}")
+
+
 if __name__ == "__main__":
     cli()
